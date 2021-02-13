@@ -1,0 +1,6 @@
+*.pyc
+*.mdb
+*.pt
+*.gz
+*.DS_Store
+data/
