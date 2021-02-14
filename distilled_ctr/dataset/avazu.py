@@ -26,8 +26,7 @@ class AvazuDataset(torch.utils.data.Dataset):
     """
 
     def __init__(self, dataset_path=None, cache_path='.avazu', rebuild_cache=False, min_threshold=4):
-        self.NUM_FEATS = 39
-        self.NUM_INT_FEATS = 13
+        self.NUM_FEATS = 22
         self.min_threshold = min_threshold
         if rebuild_cache or not Path(cache_path).exists():
             shutil.rmtree(cache_path, ignore_errors=True)
@@ -59,7 +58,7 @@ class AvazuDataset(torch.utils.data.Dataset):
     def __build_cache(self, path, cache_path):
         feat_mapper, defaults = self.__get_feat_mapper(path)
         
-        field_dims = np.zeros(self.NUM_FEATS, dtype=np.uint32)
+        field_dims = np.zeros(self.NUM_FEATS, dtype=np.int32)
         for i, fm in feat_mapper.items():
             field_dims[i - 1] = len(fm) + 1
         cache = self.__yield_buffer(path, feat_mapper, defaults)
@@ -93,7 +92,7 @@ class AvazuDataset(torch.utils.data.Dataset):
                 values = line.rstrip('\n').split(',')
                 if len(values) != self.NUM_FEATS + 2:
                     continue
-                np_array = np.zeros(self.NUM_FEATS + 1, dtype=np.uint32)
+                np_array = np.zeros(self.NUM_FEATS + 1, dtype=np.int32)
                 np_array[0] = int(values[1])
                 for i in range(1, self.NUM_FEATS + 1):
                     np_array[i] = feat_mapper[i].get(values[i+1], defaults[i])
