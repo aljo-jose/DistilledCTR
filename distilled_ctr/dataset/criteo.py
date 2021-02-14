@@ -1,12 +1,11 @@
 import math
 import shutil
-import struct
 from collections import defaultdict
-from functools import lru_cache
 from pathlib import Path
+import joblib
 
-import lmdb
 import numpy as np
+import torch
 import torch.utils.data
 from tqdm import tqdm
 
@@ -37,33 +36,38 @@ class CriteoDataset(torch.utils.data.Dataset):
             shutil.rmtree(cache_path, ignore_errors=True)
             if dataset_path is None:
                 raise ValueError('create cache: failed: dataset_path is None')
-            self.__build_cache(dataset_path, cache_path)
-        self.env = lmdb.open(cache_path, create=False, lock=False, readonly=True)
-        with self.env.begin(write=False) as txn:
-            self.length = txn.stat()['entries'] - 1
-            self.field_dims = np.frombuffer(txn.get(b'field_dims'), dtype=np.uint32)
+            cache, field_dims = self.__build_cache(dataset_path, cache_path)
+            self.save_cache(cache_path, cache, field_dims)
+        else:
+            cache, field_dims = self.load_cache(cache_path)
+        self.cache, self.field_dims = cache, field_dims
+
+    def save_cache(self, cache_path, cache, field_dims):
+        Path(cache_path).mkdir(parents=True, exist_ok=True)
+        joblib.dump(cache, cache_path+'/cache.gz')
+        joblib.dump(field_dims, cache_path+'/field_dims.gz')
+    
+    def load_cache(self, cache_path):
+        cache = joblib.load(cache_path+'/cache.gz')
+        field_dims = joblib.load(cache_path+'/field_dims.gz')
+        return cache, field_dims
+
 
     def __getitem__(self, index):
-        with self.env.begin(write=False) as txn:
-            np_array = np.frombuffer(
-                txn.get(struct.pack('>I', index)), dtype=np.uint32).astype(dtype=np.long)
-        return np_array[1:], np_array[0]
+        record = torch.tensor(self.cache[index], dtype=torch.long)
+        return record[1:], record[0]
 
     def __len__(self):
-        return self.length
+        return len(self.cache)
 
     def __build_cache(self, path, cache_path):
         feat_mapper, defaults = self.__get_feat_mapper(path)
-        with lmdb.open(cache_path, map_size=int(1e11)) as env:
-            field_dims = np.zeros(self.NUM_FEATS, dtype=np.uint32)
-            for i, fm in feat_mapper.items():
-                field_dims[i - 1] = len(fm) + 1
-            with env.begin(write=True) as txn:
-                txn.put(b'field_dims', field_dims.tobytes())
-            for buffer in self.__yield_buffer(path, feat_mapper, defaults):
-                with env.begin(write=True) as txn:
-                    for key, value in buffer:
-                        txn.put(key, value)
+        
+        field_dims = np.zeros(self.NUM_FEATS, dtype=np.uint32)
+        for i, fm in feat_mapper.items():
+            field_dims[i - 1] = len(fm) + 1
+        cache = self.__yield_buffer(path, feat_mapper, defaults)
+        return cache, field_dims
 
     def __get_feat_mapper(self, path):
         feat_cnts = defaultdict(lambda: defaultdict(int))
@@ -88,26 +92,26 @@ class CriteoDataset(torch.utils.data.Dataset):
         buffer = list()
         with open(path) as f:
             pbar = tqdm(f, mininterval=1, smoothing=0.1)
-            pbar.set_description('Create criteo dataset cache: setup lmdb')
+            pbar.set_description('Create criteo dataset cache: preprocessing')
             for line in pbar:
                 values = line.rstrip('\n').split('\t')
                 if len(values) != self.NUM_FEATS + 1:
                     continue
-                np_array = np.zeros(self.NUM_FEATS + 1, dtype=np.uint32)
+                np_array = np.zeros(self.NUM_FEATS + 1, dtype=np.int32)
                 np_array[0] = int(values[0])
                 for i in range(1, self.NUM_INT_FEATS + 1):
                     np_array[i] = feat_mapper[i].get(convert_numeric_feature(values[i]), defaults[i])
                 for i in range(self.NUM_INT_FEATS + 1, self.NUM_FEATS + 1):
                     np_array[i] = feat_mapper[i].get(values[i], defaults[i])
-                buffer.append((struct.pack('>I', item_idx), np_array.tobytes()))
+                buffer.append(np_array)
                 item_idx += 1
-                if item_idx % buffer_size == 0:
-                    yield buffer
-                    buffer.clear()
-            yield buffer
+                # if item_idx % buffer_size == 0:
+                #     yield buffer
+                #     buffer.clear()
+            #yield buffer
+            return np.array(buffer)
 
 
-@lru_cache(maxsize=None)
 def convert_numeric_feature(val: str):
     if val == '':
         return 'NULL'
@@ -116,3 +120,12 @@ def convert_numeric_feature(val: str):
         return str(int(math.log(v) ** 2))
     else:
         return str(v - 2)
+
+if __name__ == "__main__":
+    ds = CriteoDataset(
+        dataset_path='distilled_ctr/data/criteo/small/train_100k.txt', 
+        cache_path='.criteo', 
+        rebuild_cache=True, 
+        min_threshold=10)
+    n = ds.__len__()
+    x = ds.__getitem__(index=0)

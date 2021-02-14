@@ -152,6 +152,7 @@ def main(dataset_name,
     train_length = int(len(dataset) * 0.8)
     valid_length = int(len(dataset) * 0.1)
     test_length = len(dataset) - train_length - valid_length
+    torch.manual_seed(42)
     train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(
         dataset, (train_length, valid_length, test_length))
     train_data_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=8)
@@ -177,8 +178,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', default='criteo')
-    parser.add_argument('--dataset_path', help='data/criteo/train.txt, avazu/train, or ml-1m/ratings.dat')
-    parser.add_argument('--model_name', default='afi')
+    parser.add_argument('--dataset_path', default='data/criteo/train.txt',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
+    parser.add_argument('--model_name', default='wd')
     parser.add_argument('--epoch', type=int, default=100)
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--batch_size', type=int, default=2048)
