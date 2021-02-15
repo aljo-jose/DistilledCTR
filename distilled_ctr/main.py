@@ -177,16 +177,20 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', default='criteo')
-    parser.add_argument('--dataset_path', default='data/criteo/train.txt',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
+    parser.add_argument('--dataset_name', default='avazu')
+    parser.add_argument('--dataset_path', default='data/avazu/small',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
+   
+    #parser.add_argument('--dataset_name', default='criteo')
+    #parser.add_argument('--dataset_path', default='data/criteo/train.txt',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
     parser.add_argument('--model_name', default='wd')
     parser.add_argument('--epoch', type=int, default=100)
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--batch_size', type=int, default=2048)
     parser.add_argument('--weight_decay', type=float, default=1e-6)
-    parser.add_argument('--device', default='cuda:0') #cpu
+    #parser.add_argument('--device', default='cpu') #cuda:0
     parser.add_argument('--save_dir', default='chkpt')
     args = parser.parse_args()
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     main(args.dataset_name,
          args.dataset_path,
          args.model_name,
@@ -194,5 +198,5 @@ if __name__ == '__main__':
          args.learning_rate,
          args.batch_size,
          args.weight_decay,
-         args.device,
+         device,
          args.save_dir)
