@@ -1,7 +1,9 @@
 import torch
 import tqdm
+import time
 from sklearn.metrics import roc_auc_score
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 from distilled_ctr.dataset.avazu import AvazuDataset
 from distilled_ctr.dataset.criteo import CriteoDataset
@@ -90,17 +92,24 @@ def get_model(name, dataset):
 
 class EarlyStopper(object):
 
-    def __init__(self, num_trials, save_path):
+    def __init__(self, num_trials, model_name, save_dir, sample_x):
         self.num_trials = num_trials
         self.trial_counter = 0
         self.best_accuracy = 0
-        self.save_path = save_path
+        self.save_path = f'{save_dir}/{model_name}.pt'
+        self.jit_save_path = f'{save_dir}/{model_name}.jit.pt'
+        self.model_name = model_name
+        self.sample_x = sample_x
 
     def is_continuable(self, model, accuracy):
         if accuracy > self.best_accuracy:
             self.best_accuracy = accuracy
             self.trial_counter = 0
-            torch.save(model, self.save_path)
+            torch.save(model.state_dict(), self.save_path)
+            #torch.jit.save(model, self.jit_save_path)
+            m = torch.jit.trace(model, self.sample_x)
+            torch.jit.save(m, self.jit_save_path)
+            print('better accuracy, model saved.')
             return True
         elif self.trial_counter + 1 < self.num_trials:
             self.trial_counter += 1
@@ -109,7 +118,7 @@ class EarlyStopper(object):
             return False
 
 
-def train(model, optimizer, data_loader, criterion, device, log_interval=100):
+def train(model, optimizer, data_loader, criterion, device, args, log_interval=100):
     model.train()
     total_loss = 0
     tk0 = tqdm.tqdm(data_loader, smoothing=0, mininterval=1.0)
@@ -120,9 +129,11 @@ def train(model, optimizer, data_loader, criterion, device, log_interval=100):
         model.zero_grad()
         loss.backward()
         optimizer.step()
+        args.steps += 1
         total_loss += loss.item()
         if (i + 1) % log_interval == 0:
             tk0.set_postfix(loss=total_loss / log_interval)
+            args.writer.add_scalar('loss/train', total_loss/log_interval, args.steps)
             total_loss = 0
 
 
@@ -146,7 +157,8 @@ def main(dataset_name,
          batch_size,
          weight_decay,
          device,
-         save_dir):
+         save_dir,
+         args):
     device = torch.device(device)
     dataset = get_dataset(dataset_name, dataset_path)
     train_length = int(len(dataset) * 0.8)
@@ -155,16 +167,20 @@ def main(dataset_name,
     torch.manual_seed(42)
     train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(
         dataset, (train_length, valid_length, test_length))
-    train_data_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=8)
-    valid_data_loader = DataLoader(valid_dataset, batch_size=batch_size, num_workers=8)
-    test_data_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=8)
+    train_data_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=args.workers)
+    valid_data_loader = DataLoader(valid_dataset, batch_size=batch_size, num_workers=args.workers)
+    test_data_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=args.workers)
     model = get_model(model_name, dataset).to(device)
     criterion = torch.nn.BCELoss()
     optimizer = torch.optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-    early_stopper = EarlyStopper(num_trials=2, save_path=f'{save_dir}/{model_name}.pt')
+    sample_x = train_dataset.__getitem__(1) # sample input for jit save.
+    sample_x = torch.LongTensor(sample_x[0]).to(device)
+    early_stopper = EarlyStopper(num_trials=2, model_name=model_name, save_dir=save_dir, sample_x=sample_x)
+    args.steps = 0
     for epoch_i in range(epoch):
-        train(model, optimizer, train_data_loader, criterion, device)
+        train(model, optimizer, train_data_loader, criterion, device, args)
         auc = test(model, valid_data_loader, device)
+        args.writer.add_scalar('auc/test', auc, epoch_i+1)
         print('epoch:', epoch_i, 'validation: auc:', auc)
         if not early_stopper.is_continuable(model, auc):
             print(f'validation: best auc: {early_stopper.best_accuracy}')
@@ -178,19 +194,22 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', default='avazu')
-    parser.add_argument('--dataset_path', default='data/avazu/small',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
+    #data/avazu/small
+    parser.add_argument('--dataset_path', default='data/avazu/train',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
    
     #parser.add_argument('--dataset_name', default='criteo')
     #parser.add_argument('--dataset_path', default='data/criteo/train.txt',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
     parser.add_argument('--model_name', default='wd')
+    parser.add_argument('--experiment', action='store', type=str, default='unnamed-experiment', help='name the experiment')
     parser.add_argument('--epoch', type=int, default=100)
+    parser.add_argument('--workers', type=int, default=8)
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--batch_size', type=int, default=2048)
     parser.add_argument('--weight_decay', type=float, default=1e-6)
-    #parser.add_argument('--device', default='cpu') #cuda:0
     parser.add_argument('--save_dir', default='chkpt')
     args = parser.parse_args()
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    args.writer = SummaryWriter(log_dir=f'logs/{args.experiment}-{round(time.time())}')
     main(args.dataset_name,
          args.dataset_path,
          args.model_name,
@@ -198,5 +217,6 @@ if __name__ == '__main__':
          args.learning_rate,
          args.batch_size,
          args.weight_decay,
-         device,
-         args.save_dir)
+         args.device,
+         args.save_dir,
+         args)
