@@ -137,16 +137,20 @@ def train(model, optimizer, data_loader, criterion, device, args, log_interval=1
             total_loss = 0
 
 
-def test(model, data_loader, device):
+def test(model, data_loader, criterion, device):
     model.eval()
     targets, predicts = list(), list()
+    total_loss = 0
     with torch.no_grad():
         for fields, target in tqdm.tqdm(data_loader, smoothing=0, mininterval=1.0):
             fields, target = fields.to(device), target.to(device)
             y = model(fields)
+            loss = criterion(y, target.float())
+            total_loss += loss.item()
             targets.extend(target.tolist())
             predicts.extend(y.tolist())
-    return roc_auc_score(targets, predicts)
+    auc = roc_auc_score(targets, predicts)
+    return auc, total_loss/len(data_loader)
 
 
 def main(dataset_name,
@@ -179,14 +183,16 @@ def main(dataset_name,
     args.steps = 0
     for epoch_i in range(epoch):
         train(model, optimizer, train_data_loader, criterion, device, args)
-        auc = test(model, valid_data_loader, device)
-        args.writer.add_scalar('auc/test', auc, epoch_i+1)
+        auc, test_loss = test(model, valid_data_loader, criterion, device)
+        args.writer.add_scalar('auc/validation', auc, epoch_i+1)
+        args.writer.add_scalar('loss/validation', test_loss, epoch_i+1)
         print('epoch:', epoch_i, 'validation: auc:', auc)
         if not early_stopper.is_continuable(model, auc):
             print(f'validation: best auc: {early_stopper.best_accuracy}')
             break
-    auc = test(model, test_data_loader, device)
+    auc = test(model, test_data_loader, criterion, device)
     print(f'test auc: {auc}')
+    args.writer.add_scalar('auc/test', auc, epoch_i+1)
 
 
 if __name__ == '__main__':
@@ -195,7 +201,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', default='avazu')
     #data/avazu/small
-    parser.add_argument('--dataset_path', default='data/avazu/train',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
+    parser.add_argument('--dataset_path', default='data/avazu/small',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
    
     #parser.add_argument('--dataset_name', default='criteo')
     #parser.add_argument('--dataset_path', default='data/criteo/train.txt',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
