@@ -183,10 +183,10 @@ def main(dataset_name,
     args.steps = 0
     for epoch_i in range(epoch):
         train(model, optimizer, train_data_loader, criterion, device, args)
-        auc, test_loss = test(model, valid_data_loader, criterion, device)
+        auc, validation_loss = test(model, valid_data_loader, criterion, device)
         args.writer.add_scalar('auc/validation', auc, epoch_i+1)
-        args.writer.add_scalar('loss/validation', test_loss, epoch_i+1)
-        print('epoch:', epoch_i, 'validation: auc:', auc)
+        args.writer.add_scalar('loss/validation', validation_loss, epoch_i+1)
+        print(f'epoch: {epoch_i}, validation: auc:, {auc}, validation loss:{validation_loss}')
         if not early_stopper.is_continuable(model, auc):
             print(f'validation: best auc: {early_stopper.best_accuracy}')
             break
