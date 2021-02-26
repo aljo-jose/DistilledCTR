@@ -18,10 +18,10 @@ class EnsembleModel(nn.Module):
     def forward(self, x):
         ensemble_out = []
         is_sigmoid_output  = (self.ensemble_type in ('avg', 'weighted'))
-        #with torch.no_grad(): # make sure ensembled models are not changed.
-        for model in self.models:
-            p = model(x.clone(), sigmoid_output=is_sigmoid_output)
-            ensemble_out.append(p)
+        with torch.no_grad(): # make sure ensembled models are not changed.
+            for model in self.models:
+                p = model(x.clone(), sigmoid_output=is_sigmoid_output)
+                ensemble_out.append(p)
 
         if self.ensemble_type == 'avg':
             x = torch.stack(ensemble_out,dim=1)
