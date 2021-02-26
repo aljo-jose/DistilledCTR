@@ -25,17 +25,17 @@ class EnsembleModel(nn.Module):
 
         if self.ensemble_type == 'avg':
             x = torch.stack(ensemble_out,dim=1)
-            x = torch.mean(x, dim=1, keepdim=True)
+            out = torch.mean(x, dim=1, keepdim=True)
         elif self.ensemble_type == 'weighted':
             weights = self.weight_embed(torch.tensor(list(range(self.num_models)), dtype=torch.long, device=x.device)).view(1,self.num_models)
             smoothed_weights = nn.Softmax(dim=1)(weights)
             x = torch.stack(ensemble_out,dim=1)
             x = x * smoothed_weights
-            x = x.sum(dim=1,keepdim=True)
+            out = x.sum(dim=1,keepdim=True)
         elif self.ensemble_type == 'stacked': # implement output type.
             x = torch.cat((ensemble_out), dim=1)
-            x = self.stacked_out_lin(x)
+            out = self.stacked_out_lin(x)
         else:
             raise ValueError('unexpected ensembling type ', self.ensemble_type)
 
-        return torch.sigmoid(x.squeeze(1))
+        return out.squeeze(1)
