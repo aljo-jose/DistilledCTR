@@ -27,7 +27,7 @@ class EnsembleModel(nn.Module):
             x = torch.stack(ensemble_out,dim=1)
             x = torch.mean(x, dim=1, keepdim=True)
         elif self.ensemble_type == 'weighted':
-            weights = self.weight_embed(torch.tensor(list(range(self.num_models)), dtype=torch.long)).view(1,self.num_models)
+            weights = self.weight_embed(torch.tensor(list(range(self.num_models)), dtype=torch.long, device=x.device)).view(1,self.num_models)
             smoothed_weights = nn.Softmax(dim=1)(weights)
             x = torch.stack(ensemble_out,dim=1)
             x = x * smoothed_weights
