@@ -93,7 +93,7 @@ def get_model(name, dataset):
     elif name == 'dnn':
         return DNNModel(field_dims, embed_dim=16)
     elif name.split('-')[1] == 'ensemble':
-        model_names = ['wd','dcn', 'dfm']
+        model_names = ['wd','dcn', 'dfm', 'xdfm']
         models = []
         for m_name in model_names:
             m = get_model(m_name, dataset)
@@ -224,7 +224,7 @@ if __name__ == '__main__':
    
     #parser.add_argument('--dataset_name', default='criteo')
     #parser.add_argument('--dataset_path', default='data/criteo/train.txt',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
-    parser.add_argument('--model_name', default='stacked-ensemble')
+    parser.add_argument('--model_name', default='weighted-ensemble')
     parser.add_argument('--experiment', action='store', type=str, default='unnamed-experiment', help='name the experiment')
     parser.add_argument('--epoch', type=int, default=100)
     parser.add_argument('--workers', type=int, default=8)
