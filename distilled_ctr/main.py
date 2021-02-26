@@ -93,7 +93,7 @@ def get_model(name, dataset):
     elif name == 'dnn':
         return DNNModel(field_dims, embed_dim=16)
     elif name.split('-')[1] == 'ensemble':
-        model_names = ['wd','dcn', 'dfm', 'xdfm']
+        model_names = ['dcn', 'dfm', 'xdfm']
         models = []
         for m_name in model_names:
             m = get_model(m_name, dataset)
@@ -209,7 +209,7 @@ def main(dataset_name,
         if not early_stopper.is_continuable(model, auc):
             print(f'validation: best auc: {early_stopper.best_accuracy}')
             break
-    auc,test_loss = test(model, test_data_loader, criterion, device)
+    auc,_ = test(model, test_data_loader, criterion, device)
     print(f'test auc: {auc}')
     args.writer.add_scalar('auc/test', auc, epoch_i+1)
 

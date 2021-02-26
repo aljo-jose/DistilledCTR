@@ -8,8 +8,10 @@ class EnsembleModel(nn.Module):
         super(EnsembleModel,self).__init__()
         self.ensemble_type = ensemble_type
         self.models = models
+        self.num_models = len(self.models)
         if self.ensemble_type == 'weighted':
-            self.ensemble_weights = nn.Linear(len(self.models), 1, bias=False)
+            #self.ensemble_weights = nn.Linear(self.num_models, 1, bias=False)
+            self.weight_embed = nn.Embedding(self.num_models, 1)
         elif self.ensemble_type == 'stacked':
             self.stacked_out_lin = nn.Linear(370, 1)
 
@@ -25,8 +27,11 @@ class EnsembleModel(nn.Module):
             x = torch.stack(ensemble_out,dim=1)
             x = torch.mean(x, dim=1, keepdim=True)
         elif self.ensemble_type == 'weighted':
+            weights = self.weight_embed(torch.tensor(list(range(self.num_models)), dtype=torch.long)).view(1,self.num_models)
+            smoothed_weights = nn.Softmax(dim=1)(weights)
             x = torch.stack(ensemble_out,dim=1)
-            x = self.ensemble_weights(x)
+            x = x * smoothed_weights
+            x = x.sum(dim=1,keepdim=True)
         elif self.ensemble_type == 'stacked': # implement output type.
             x = torch.cat((ensemble_out), dim=1)
             x = self.stacked_out_lin(x)
