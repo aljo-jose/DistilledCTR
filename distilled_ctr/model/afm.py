@@ -18,11 +18,12 @@ class AttentionalFactorizationMachineModel(torch.nn.Module):
         self.linear = FeaturesLinear(field_dims)
         self.afm = AttentionalFactorizationMachine(embed_dim, attn_size, dropouts)
 
-    def forward(self, x):
+    def forward(self, x, sigmoid_output=True):
         """
         :param x: Long tensor of size ``(batch_size, num_fields)``
         """
         if not x.is_cuda:
             x = torch.LongTensor(x).to(device)
         x = self.linear(x) + self.afm(self.embedding(x))
-        return torch.sigmoid(x.squeeze(1))
+        out = torch.sigmoid(x.squeeze(1)) if sigmoid_output else x
+        return out

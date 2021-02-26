@@ -4,6 +4,7 @@ import time
 from sklearn.metrics import roc_auc_score
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+import distilled_ctr.config as config
 
 from distilled_ctr.dataset.avazu import AvazuDataset
 from distilled_ctr.dataset.criteo import CriteoDataset
@@ -24,7 +25,10 @@ from distilled_ctr.model.pnn import ProductNeuralNetworkModel
 from distilled_ctr.model.wd import WideAndDeepModel
 from distilled_ctr.model.xdfm import ExtremeDeepFactorizationMachineModel
 from distilled_ctr.model.afn import AdaptiveFactorizationNetwork
+from distilled_ctr.model.dnn import DNNModel
+from distilled_ctr.model.ensemble import EnsembleModel
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def get_dataset(name, path):
     if name == 'movielens1M':
@@ -86,6 +90,18 @@ def get_model(name, dataset):
         print("Model:AFN")
         return AdaptiveFactorizationNetwork(
             field_dims, embed_dim=16, LNN_dim=1500, mlp_dims=(400, 400, 400), dropouts=(0, 0, 0))
+    elif name == 'dnn':
+        return DNNModel(field_dims, embed_dim=16)
+    elif name.split('-')[1] == 'ensemble':
+        model_names = ['wd','dcn', 'dfm']
+        models = []
+        for m_name in model_names:
+            m = get_model(m_name, dataset)
+            m.load_state_dict(torch.load(config.MODEL_DIR.format(model_name=m_name)))
+            models.append(m.to(device))
+        ensemble_type = name.split('-')[0]
+        assert ensemble_type in ('avg', 'weighted', 'stacked')
+        return EnsembleModel(models=models, ensemble_type=ensemble_type, field_dims=field_dims, embed_dim=16)
     else:
         raise ValueError('unknown model name: ' + name)
 
@@ -106,9 +122,8 @@ class EarlyStopper(object):
             self.best_accuracy = accuracy
             self.trial_counter = 0
             torch.save(model.state_dict(), self.save_path)
-            #torch.jit.save(model, self.jit_save_path)
-            m = torch.jit.trace(model, self.sample_x)
-            torch.jit.save(m, self.jit_save_path)
+            # m = torch.jit.trace(model, self.sample_x)
+            # torch.jit.save(m, self.jit_save_path)
             print('better accuracy, model saved.')
             return True
         elif self.trial_counter + 1 < self.num_trials:
@@ -126,9 +141,10 @@ def train(model, optimizer, data_loader, criterion, device, args, log_interval=1
         fields, target = fields.to(device), target.to(device)
         y = model(fields)
         loss = criterion(y, target.float())
-        model.zero_grad()
-        loss.backward()
-        optimizer.step()
+        if args.is_nn:
+            model.zero_grad()
+            loss.backward()
+            optimizer.step()
         args.steps += 1
         total_loss += loss.item()
         if (i + 1) % log_interval == 0:
@@ -176,7 +192,10 @@ def main(dataset_name,
     test_data_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=args.workers)
     model = get_model(model_name, dataset).to(device)
     criterion = torch.nn.BCELoss()
-    optimizer = torch.optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    if args.is_nn:
+        optimizer = torch.optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    else:
+        optimizer = None
     sample_x = train_dataset.__getitem__(1) # sample input for jit save.
     sample_x = torch.LongTensor(sample_x[0]).to(device)
     early_stopper = EarlyStopper(num_trials=2, model_name=model_name, save_dir=save_dir, sample_x=sample_x)
@@ -190,7 +209,7 @@ def main(dataset_name,
         if not early_stopper.is_continuable(model, auc):
             print(f'validation: best auc: {early_stopper.best_accuracy}')
             break
-    auc = test(model, test_data_loader, criterion, device)
+    auc,test_loss = test(model, test_data_loader, criterion, device)
     print(f'test auc: {auc}')
     args.writer.add_scalar('auc/test', auc, epoch_i+1)
 
@@ -205,7 +224,7 @@ if __name__ == '__main__':
    
     #parser.add_argument('--dataset_name', default='criteo')
     #parser.add_argument('--dataset_path', default='data/criteo/train.txt',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
-    parser.add_argument('--model_name', default='wd')
+    parser.add_argument('--model_name', default='stacked-ensemble')
     parser.add_argument('--experiment', action='store', type=str, default='unnamed-experiment', help='name the experiment')
     parser.add_argument('--epoch', type=int, default=100)
     parser.add_argument('--workers', type=int, default=8)
@@ -216,6 +235,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     args.writer = SummaryWriter(log_dir=f'logs/{args.experiment}-{round(time.time())}')
+    args.is_nn = (args.model_name != 'avg-ensemble')
     main(args.dataset_name,
          args.dataset_path,
          args.model_name,

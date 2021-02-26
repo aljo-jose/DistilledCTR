@@ -19,7 +19,7 @@ class DeepCrossNetworkModel(torch.nn.Module):
         self.mlp = MultiLayerPerceptron(self.embed_output_dim, mlp_dims, dropout, output_layer=False)
         self.linear = torch.nn.Linear(mlp_dims[-1] + self.embed_output_dim, 1)
 
-    def forward(self, x):
+    def forward(self, x, sigmoid_output=True):
         """
         :param x: Long tensor of size ``(batch_size, num_fields)``
         """
@@ -30,4 +30,5 @@ class DeepCrossNetworkModel(torch.nn.Module):
         h_l2 = self.mlp(embed_x)
         x_stack = torch.cat([x_l1, h_l2], dim=1)
         p = self.linear(x_stack)
-        return torch.sigmoid(p.squeeze(1))
+        out = torch.sigmoid(p.squeeze(1)) if sigmoid_output else x_stack
+        return out
