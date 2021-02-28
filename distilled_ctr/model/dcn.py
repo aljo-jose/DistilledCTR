@@ -30,5 +30,5 @@ class DeepCrossNetworkModel(torch.nn.Module):
         h_l2 = self.mlp(embed_x)
         x_stack = torch.cat([x_l1, h_l2], dim=1)
         p = self.linear(x_stack)
-        out = torch.sigmoid(p.squeeze(1)) if sigmoid_output else x_stack
+        out = torch.sigmoid(p.squeeze(1)) if sigmoid_output else p
         return out

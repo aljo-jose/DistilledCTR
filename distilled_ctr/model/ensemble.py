@@ -17,19 +17,19 @@ class EnsembleModel(nn.Module):
 
     def forward(self, x):
         ensemble_out = []
-        is_sigmoid_output  = (self.ensemble_type in ('avg', 'weighted'))
+        #is_sigmoid_output  = (self.ensemble_type in ('avg', 'weighted'))
         with torch.no_grad(): # make sure ensembled models are not changed.
             for model in self.models:
-                p = model(x.clone(), sigmoid_output=is_sigmoid_output)
+                p = model(x.clone(), sigmoid_output=False)
                 ensemble_out.append(p)
 
         if self.ensemble_type == 'avg':
-            x = torch.stack(ensemble_out,dim=1)
+            x = torch.stack(ensemble_out,dim=1).squeeze()
             out = torch.mean(x, dim=1, keepdim=True)
         elif self.ensemble_type == 'weighted':
             weights = self.weight_embed(torch.tensor(list(range(self.num_models)), dtype=torch.long, device=x.device)).view(1,self.num_models)
             smoothed_weights = nn.Softmax(dim=1)(weights)
-            x = torch.stack(ensemble_out,dim=1)
+            x = torch.stack(ensemble_out,dim=1).squeeze()
             x = x * smoothed_weights
             out = x.sum(dim=1,keepdim=True)
         elif self.ensemble_type == 'stacked': # implement output type.
@@ -38,4 +38,4 @@ class EnsembleModel(nn.Module):
         else:
             raise ValueError('unexpected ensembling type ', self.ensemble_type)
 
-        return out.squeeze(1)
+        return torch.sigmoid(out.squeeze(1))
