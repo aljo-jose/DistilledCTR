@@ -198,7 +198,7 @@ def main(dataset_name,
         optimizer = None
     sample_x = train_dataset.__getitem__(1) # sample input for jit save.
     sample_x = torch.LongTensor(sample_x[0]).to(device)
-    early_stopper = EarlyStopper(num_trials=2, model_name=model_name, save_dir=save_dir, sample_x=sample_x)
+    early_stopper = EarlyStopper(num_trials=2, model_name=dataset_name+'_'+model_name, save_dir=save_dir, sample_x=sample_x)
     args.steps = 0
     for epoch_i in range(epoch):
         train(model, optimizer, train_data_loader, criterion, device, args)
