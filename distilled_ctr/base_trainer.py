@@ -122,8 +122,8 @@ class EarlyStopper(object):
             self.best_accuracy = accuracy
             self.trial_counter = 0
             torch.save(model.state_dict(), self.save_path)
-            # m = torch.jit.trace(model, self.sample_x)
-            # torch.jit.save(m, self.jit_save_path)
+            m = torch.jit.trace(model, self.sample_x)
+            torch.jit.save(m, self.jit_save_path)
             print('better accuracy, model saved.')
             return True
         elif self.trial_counter + 1 < self.num_trials:
