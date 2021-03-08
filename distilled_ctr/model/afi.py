@@ -29,7 +29,7 @@ class AutomaticFeatureInteractionModel(torch.nn.Module):
         if self.has_residual:
             self.V_res_embedding = torch.nn.Linear(embed_dim, atten_embed_dim)
 
-    def forward(self, x):
+    def forward(self, x, sigmoid_output=True):
         """
         :param x: Long tensor of size ``(batch_size, num_fields)``
         """
@@ -44,4 +44,5 @@ class AutomaticFeatureInteractionModel(torch.nn.Module):
             cross_term += V_res
         cross_term = F.relu(cross_term).contiguous().view(-1, self.atten_output_dim)
         x = self.linear(x) + self.attn_fc(cross_term) + self.mlp(embed_x.view(-1, self.embed_output_dim))
-        return torch.sigmoid(x.squeeze(1))
+        out = torch.sigmoid(x.squeeze(1)) if sigmoid_output else x
+        return out

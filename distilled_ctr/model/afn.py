@@ -36,7 +36,7 @@ class LNN(torch.nn.Module):
         if self.bias is not None:
             self.bias.data.uniform_(-stdv, stdv)
 
-    def forward(self, x):
+    def forward(self, x, sigmoid_output=True):
         """
         :param x: Long tensor of size ``(batch_size, num_fields, embedding_size)``
         """
