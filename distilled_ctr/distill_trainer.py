@@ -105,7 +105,7 @@ def get_model(name, dataset):
         models = []
         for m_name in model_names:
             m = get_model(m_name, dataset)
-            m.load_state_dict(torch.load(config.MODEL_DIR.format(model_name=m_name)))
+            m.load_state_dict(torch.load(config.MODEL_DIR.format(model_name='criteo_'+m_name)))
             models.append(m.to(device))
         ensemble_type = name.split('-')[0]
         assert ensemble_type in ('avg', 'weighted', 'stacked')
@@ -227,7 +227,7 @@ def main(dataset_name,
     test_data_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=args.workers)
 
     teacher_model = get_model(args.teacher, dataset)
-    teacher_model_path = config.MODEL_DIR.format(model_name=args.dataset_name+'_'+args.teacher)
+    teacher_model_path = config.MODEL_DIR.format(model_name=args.teacher)
     teacher_model.load_state_dict(torch.load(teacher_model_path))
     teacher_model = teacher_model.to(device)
     student_model = get_model(args.student, dataset).to(device)
