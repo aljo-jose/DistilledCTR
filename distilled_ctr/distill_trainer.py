@@ -101,7 +101,7 @@ def get_model(name, dataset):
     elif name == 'dnn':
         return DNNModel(field_dims, embed_dim=16)
     elif name.split('-')[1] == 'ensemble':
-        model_names = ['dcn', 'dfm', 'xdfm']
+        model_names = ['afi', 'dnn', 'xdfm']
         models = []
         for m_name in model_names:
             m = get_model(m_name, dataset)
