@@ -109,7 +109,7 @@ class AvazuDataset(torch.utils.data.Dataset):
 
 if __name__ == "__main__":
     ds = AvazuDataset(
-        dataset_path='data/avazu/small', #'data/avazu/train', 
+        dataset_path='data/avazu/train', #'data/avazu/train', 
         cache_path='.avazu', 
         rebuild_cache=True, 
         min_threshold=5)

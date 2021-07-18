@@ -238,14 +238,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', default='avazu')
     #data/avazu/small
-    parser.add_argument('--dataset_path', default='data/avazu/small',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
+    parser.add_argument('--dataset_path', default='data/avazu/train',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
    
     #parser.add_argument('--dataset_name', default='criteo')
     #parser.add_argument('--dataset_path', default='data/criteo/train.txt',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
     parser.add_argument('--model_name', default='nam')
     parser.add_argument('--experiment', action='store', type=str, default='unnamed-experiment', help='name the experiment')
     parser.add_argument('--epoch', type=int, default=100)
-    parser.add_argument('--workers', type=int, default=0)
+    parser.add_argument('--workers', type=int, default=6)
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--batch_size', type=int, default=2048)
     parser.add_argument('--weight_decay', type=float, default=1e-6)
