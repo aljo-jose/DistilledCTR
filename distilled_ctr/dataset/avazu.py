@@ -32,21 +32,23 @@ class AvazuDataset(torch.utils.data.Dataset):
             shutil.rmtree(cache_path, ignore_errors=True)
             if dataset_path is None:
                 raise ValueError('create cache: failed: dataset_path is None')
-            cache, field_dims = self.__build_cache(dataset_path, cache_path)
-            self.save_cache(cache_path, cache, field_dims)
+            cache, field_dims, feat_mapper = self.__build_cache(dataset_path, cache_path)
+            self.save_cache(cache_path, cache, field_dims, feat_mapper)
         else:
-            cache, field_dims = self.load_cache(cache_path)
-        self.cache, self.field_dims = cache, field_dims
+            cache, field_dims, feat_mapper = self.load_cache(cache_path)
+        self.cache, self.field_dims, self.feat_mapper = cache, field_dims, feat_mapper
 
-    def save_cache(self, cache_path, cache, field_dims):
+    def save_cache(self, cache_path, cache, field_dims, feat_mapper):
         Path(cache_path).mkdir(parents=True, exist_ok=True)
         joblib.dump(cache, cache_path+'/cache.gz')
         joblib.dump(field_dims, cache_path+'/field_dims.gz')
-    
+        joblib.dump(feat_mapper, cache_path+'/feat_mapper.gz')
+
     def load_cache(self, cache_path):
         cache = joblib.load(cache_path+'/cache.gz')
         field_dims = joblib.load(cache_path+'/field_dims.gz')
-        return cache, field_dims
+        feat_mapper = joblib.load(cache_path+'/feat_mapper.gz')
+        return cache, field_dims, feat_mapper
 
     def __getitem__(self, index):
         record = torch.tensor(self.cache[index], dtype=torch.long)
@@ -62,7 +64,7 @@ class AvazuDataset(torch.utils.data.Dataset):
         for i, fm in feat_mapper.items():
             field_dims[i - 1] = len(fm) + 1
         cache = self.__yield_buffer(path, feat_mapper, defaults)
-        return cache, field_dims
+        return cache, field_dims, feat_mapper
 
     def __get_feat_mapper(self, path):
         feat_cnts = defaultdict(lambda: defaultdict(int))
@@ -107,9 +109,9 @@ class AvazuDataset(torch.utils.data.Dataset):
 
 if __name__ == "__main__":
     ds = AvazuDataset(
-        dataset_path='data/avazu/train', 
+        dataset_path='data/avazu/small', #'data/avazu/train', 
         cache_path='.avazu', 
         rebuild_cache=True, 
-        min_threshold=10)
+        min_threshold=5)
     n = ds.__len__()
     x = ds.__getitem__(index=0)

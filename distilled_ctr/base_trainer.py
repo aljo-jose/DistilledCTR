@@ -26,6 +26,7 @@ from distilled_ctr.model.wd import WideAndDeepModel
 from distilled_ctr.model.xdfm import ExtremeDeepFactorizationMachineModel
 from distilled_ctr.model.afn import AdaptiveFactorizationNetwork
 from distilled_ctr.model.dnn import DNNModel
+import distilled_ctr.model.nam as nam
 from distilled_ctr.model.ensemble import EnsembleModel
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -92,6 +93,20 @@ def get_model(name, dataset):
             field_dims, embed_dim=16, LNN_dim=1500, mlp_dims=(400, 400, 400), dropouts=(0, 0, 0))
     elif name == 'dnn':
         return DNNModel(field_dims, embed_dim=16)
+    elif name == 'nam':
+        embed_dim = 16
+        model = nam.NeuralAdditiveModel(
+            input_size=len(field_dims),
+            field_dims=field_dims,
+            embed_dim=embed_dim,
+            shallow_units=embed_dim,
+            hidden_units=list(map(int, [])),
+            shallow_layer=nam.ExULayer,
+            hidden_layer=nam.ExULayer,
+            hidden_dropout=0,
+            feature_dropout=0
+        )
+        return model
     elif name.split('-')[1] == 'ensemble':
         model_names = ['dcn', 'dfm', 'xdfm']
         models = []
@@ -140,6 +155,7 @@ def train(model, optimizer, data_loader, criterion, device, args, log_interval=1
     for i, (fields, target) in enumerate(tk0):
         fields, target = fields.to(device), target.to(device)
         y = model(fields)
+        assert y.shape==target.shape, 'y and target should be of same shape.'
         loss = criterion(y, target.float())
         if args.is_nn:
             model.zero_grad()
@@ -161,6 +177,7 @@ def test(model, data_loader, criterion, device):
         for fields, target in tqdm.tqdm(data_loader, smoothing=0, mininterval=1.0):
             fields, target = fields.to(device), target.to(device)
             y = model(fields)
+            assert y.shape==target.shape, 'y and target should be of same shape.'
             loss = criterion(y, target.float())
             total_loss += loss.item()
             targets.extend(target.tolist())
@@ -225,10 +242,10 @@ if __name__ == '__main__':
    
     #parser.add_argument('--dataset_name', default='criteo')
     #parser.add_argument('--dataset_path', default='data/criteo/train.txt',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
-    parser.add_argument('--model_name', default='weighted-ensemble')
+    parser.add_argument('--model_name', default='nam')
     parser.add_argument('--experiment', action='store', type=str, default='unnamed-experiment', help='name the experiment')
     parser.add_argument('--epoch', type=int, default=100)
-    parser.add_argument('--workers', type=int, default=8)
+    parser.add_argument('--workers', type=int, default=0)
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--batch_size', type=int, default=2048)
     parser.add_argument('--weight_decay', type=float, default=1e-6)

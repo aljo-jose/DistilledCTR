@@ -144,7 +144,7 @@ if __name__ == '__main__':
    
     #parser.add_argument('--dataset_name', default='criteo')
     #parser.add_argument('--dataset_path', default='data/criteo/train.txt',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
-    parser.add_argument('--model_name', default='dnn')
+    parser.add_argument('--model_name', default='nfm')
     parser.add_argument('--experiment', action='store', type=str, default='unnamed-experiment', help='name the experiment')
     parser.add_argument('--epoch', type=int, default=100)
     parser.add_argument('--workers', type=int, default=8)

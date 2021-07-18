@@ -146,6 +146,10 @@ def entropy_loss_fn(outputs, targets):
 def inverse_sigmoid(y):
     return torch.log(y/(1-y))
 
+def hint_loss(student_scores, teacher_scores, targets):
+    pass
+    # 
+
 def distillation_loss_fn(student_scores, teacher_scores, targets, alpha=0.5):
     student_logits = inverse_sigmoid(student_scores)
     teacher_logits = inverse_sigmoid(teacher_scores)
@@ -267,7 +271,7 @@ if __name__ == '__main__':
     parser.add_argument('--student', default='dnn')
     parser.add_argument('--experiment', action='store', type=str, default='unnamed-experiment', help='name the experiment')
     parser.add_argument('--epoch', type=int, default=100)
-    parser.add_argument('--workers', type=int, default=8)
+    parser.add_argument('--workers', type=int, default=0)
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--batch_size', type=int, default=2048)
     parser.add_argument('--weight_decay', type=float, default=1e-6)
