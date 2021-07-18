@@ -100,9 +100,9 @@ def get_model(name, dataset):
             field_dims=field_dims,
             embed_dim=embed_dim,
             shallow_units=embed_dim,
-            hidden_units=list(map(int, [])),
+            hidden_units=list(map(int, [1])),
             shallow_layer=nam.ExULayer,
-            hidden_layer=nam.ExULayer,
+            hidden_layer=nam.ReLULayer,
             hidden_dropout=0,
             feature_dropout=0
         )
