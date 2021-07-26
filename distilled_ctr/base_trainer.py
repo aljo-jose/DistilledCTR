@@ -27,6 +27,7 @@ from distilled_ctr.model.xdfm import ExtremeDeepFactorizationMachineModel
 from distilled_ctr.model.afn import AdaptiveFactorizationNetwork
 from distilled_ctr.model.dnn import DNNModel
 import distilled_ctr.model.nam as nam
+import distilled_ctr.model.nafm as nafm
 from distilled_ctr.model.ensemble import EnsembleModel
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -96,6 +97,20 @@ def get_model(name, dataset):
     elif name == 'nam':
         embed_dim = 16
         model = nam.NeuralAdditiveModel(
+            input_size=len(field_dims),
+            field_dims=field_dims,
+            embed_dim=embed_dim,
+            shallow_units=embed_dim,
+            hidden_units=list(map(int, [1])),
+            shallow_layer=nam.ExULayer,
+            hidden_layer=nam.ReLULayer,
+            hidden_dropout=0,
+            feature_dropout=0
+        )
+        return model
+    elif name == 'nafm':
+        embed_dim = 16
+        model = nafm.NeuralAdditiveFactorizationMachines(
             input_size=len(field_dims),
             field_dims=field_dims,
             embed_dim=embed_dim,
@@ -242,10 +257,10 @@ if __name__ == '__main__':
    
     #parser.add_argument('--dataset_name', default='criteo')
     #parser.add_argument('--dataset_path', default='data/criteo/train.txt',  help='data/criteo/train.txt, data/avazu/train, or ml-1m/ratings.dat')
-    parser.add_argument('--model_name', default='nam')
+    parser.add_argument('--model_name', default='nafm')
     parser.add_argument('--experiment', action='store', type=str, default='unnamed-experiment', help='name the experiment')
     parser.add_argument('--epoch', type=int, default=100)
-    parser.add_argument('--workers', type=int, default=6)
+    parser.add_argument('--workers', type=int, default=0)
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--batch_size', type=int, default=2048)
     parser.add_argument('--weight_decay', type=float, default=1e-6)
