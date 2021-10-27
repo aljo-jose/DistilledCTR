@@ -130,7 +130,7 @@ def get_model(name, dataset):
             m.load_state_dict(torch.load(config.MODEL_DIR.format(model_name=m_name)))
             models.append(m.to(device))
         ensemble_type = name.split('-')[0]
-        assert ensemble_type in ('avg', 'weighted', 'stacked')
+        assert ensemble_type in ('avg', 'weighted', 'stacked', 'gated')
         return EnsembleModel(models=models, ensemble_type=ensemble_type, field_dims=field_dims, embed_dim=16)
     else:
         raise ValueError('unknown model name: ' + name)
