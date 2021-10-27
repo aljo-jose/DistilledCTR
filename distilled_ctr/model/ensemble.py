@@ -14,10 +14,12 @@ class EnsembleModel(nn.Module):
             self.weight_embed = nn.Embedding(self.num_models, 1)
         elif self.ensemble_type == 'stacked':
             self.stacked_out_lin = nn.Linear(370, 1)
+        elif self.ensemble_type == 'gated':
+            self.gated_lin1 = nn.Linear(len(field_dims) * embed_dim, self.num_models)
+            self.gated_lin2 = nn.Linear(self.num_models, 1)
 
     def forward(self, x):
         ensemble_out = []
-        #is_sigmoid_output  = (self.ensemble_type in ('avg', 'weighted'))
         with torch.no_grad(): # make sure ensembled models are not changed.
             for model in self.models:
                 p = model(x.clone(), sigmoid_output=False)
@@ -35,6 +37,11 @@ class EnsembleModel(nn.Module):
         elif self.ensemble_type == 'stacked': # implement output type.
             x = torch.cat((ensemble_out), dim=1)
             out = self.stacked_out_lin(x)
+        elif self.ensemble_type == 'gated':
+            x = self.gated_lin1(x)
+            x = F.relu(x)
+            x = x * torch.tensor(ensemble_out).reshape(x.shape)
+            x = self.gated_lin2(x)
         else:
             raise ValueError('unexpected ensembling type ', self.ensemble_type)
 
